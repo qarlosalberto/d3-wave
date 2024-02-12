@@ -33,9 +33,10 @@ export class TreeList {
 	scroll: Scrollbar | null;
 	contextMenu: SignalContextMenu;
 	nodes:HierarchyNodeWaveGraphSignalWithXYId[];
+	clickFunction: (id : string) => void;
 	_onChange: ((nodes: HierarchyNodeWaveGraphSignalWithXYId[]) => void) | null;
 
-	constructor(barHeight: number, contextMenu: SignalContextMenu) {
+	constructor(barHeight: number, contextMenu: SignalContextMenu, clickFunction: (id : string) => void) {
 		this.barHeight = barHeight;
 		this.contextMenu = contextMenu;
 		this.root = null;
@@ -48,6 +49,7 @@ export class TreeList {
 		this._onChange = null;
 		this.nodes = [];
 		this.labelMoving = new SignalLabelManipulation(barHeight, this);
+		this.clickFunction = clickFunction;
 	}
 
 	public static getExpandCollapseIcon(d: HierarchyNodeWaveGraphSignalWithXYId) {
@@ -233,6 +235,7 @@ export class TreeList {
 	}
 	update() {
 		this.resolveSelection();
+		const selfm = this;
 		if (!this.labelG)
 			return;
 		// Update the nodes
@@ -250,10 +253,10 @@ export class TreeList {
 
 		var barHeight = this.barHeight;
 		// background rectangle for highlight
-		nodeEnter.append<SVGRectElement>('rect')
-			.attr('height', barHeight)
-			.attr('x', barHeight / 2)
-			.attr('y', -0.5 * barHeight);
+		// nodeEnter.append<SVGRectElement>('rect')
+		// 	.attr('height', barHeight)
+		// 	.attr('x', barHeight / 2)
+		// 	.attr('y', -0.5 * barHeight);
 
 		// adding arrows
 		nodeEnter.append<SVGPathElement>('path')
@@ -276,6 +279,8 @@ export class TreeList {
 		nodeEnter.append<SVGTextElement>('text')
 			.attr('dy', 3.5)
 			.attr('dx', 15)
+			.style('user-select', 'none')
+			.style('cursor', 'default')
 			.text((d: HierarchyNodeWaveGraphSignalWithXYId) => d.data.name);
 		nodeEnter
 			.on('mouseover', function (this: SVGGElement, event: any, d: HierarchyNodeWaveGraphSignalWithXYId) {
@@ -298,12 +303,15 @@ export class TreeList {
 		nodeEnter.on('contextmenu', function (this: SVGGElement, ev: any, d: HierarchyNodeWaveGraphSignalWithXYId) {
 			contextmenu(this, ev, d);
 		});
+		nodeEnter.on("dblclick", function(event, d: HierarchyNodeWaveGraphSignalWithXYId) {
+			selfm.clickFunction(d.data.rtlID);
+		})
 		this._setLabelWidth(this.width as number);
 		if (this._onChange) {
 			this._onChange(this.nodes);
 		}
-		this.labelMoving.registerDrag(
-			this.labelG.selectAll<SVGGElement, HierarchyNodeWaveGraphSignalWithXYId>('.labelcell')
-		);
+		// this.labelMoving.registerDrag(
+		// 	this.labelG.selectAll<SVGGElement, HierarchyNodeWaveGraphSignalWithXYId>('.labelcell')
+		// );
 	}
 }

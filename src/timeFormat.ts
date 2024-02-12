@@ -21,6 +21,7 @@ export function createTimeFormatter(divider: number, unitName: string) {
 
 export function createTimeFormatterForTimeRange(timeRange: [number, number]): (d: d3.NumberValue, i: number) => string {
 	const _timeRange = timeRange[1] - timeRange[0];
+
 	for (var i = 0; i < TIME_UNITS.length; i++) {
 		var u = TIME_UNITS[i];
 		if (_timeRange < 1000 * u[0] || i === TIME_UNITS.length - 1) {

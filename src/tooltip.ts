@@ -25,7 +25,7 @@ export class Tooltip {
 				var tootipHtml = tooltipHtmlGetter(d)
 				tooltipDiv.html(tootipHtml)
 					.style('left', (ev.pageX) + 'px')
-					.style('top', (ev.pageY - 28) + 'px');
+					.style('top', (ev.pageY) + 'px');
 			})
 			.on('mouseout', function() {
 				tooltipDiv.transition()

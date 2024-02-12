@@ -23,16 +23,18 @@ export class WaveGraphSignalTypeInfo {
  */
 export class WaveGraphSignal {
 	name: string;
+	rtlID: string;
 	type: WaveGraphSignalTypeInfo;
 	data: SignalDataValueTuple[];
 	children?: WaveGraphSignal[];
 	_children?: WaveGraphSignal[];
 
-	constructor(name: string, type: WaveGraphSignalTypeInfo, data: SignalDataValueTuple[],
+	constructor(name: string, rtlID: string, type: WaveGraphSignalTypeInfo, data: SignalDataValueTuple[],
 		children: WaveGraphSignal[] | undefined = undefined, expanded: boolean = true) {
 		this.name = name;
 		this.type = type;
 		this.data = data;
+		this.rtlID = rtlID;
 		if (expanded) {
 			this.children = children;
 		} else {

@@ -4,9 +4,11 @@ import type { HierarchyNodeWaveGraphSignalWithXYId } from './treeList';
 
 export class SignalContextMenu extends ContextMenu<HierarchyNodeWaveGraphSignalWithXYId> {
 	waveGraph: WaveGraph;
-	constructor(waveGraph: WaveGraph) {
+	removeFunction: (id: string | undefined) => void;
+	constructor(waveGraph: WaveGraph, removeFunction: (id: string | undefined) => void) {
 		super();
 		this.waveGraph = waveGraph;
+		this.removeFunction = removeFunction;
 	}
 	getMenuItems(d: ContextMenuItem<HierarchyNodeWaveGraphSignalWithXYId>): ContextMenuItem<any>[] {
 		let waveGraph = this.waveGraph;
@@ -55,19 +57,21 @@ export class SignalContextMenu extends ContextMenu<HierarchyNodeWaveGraphSignalW
 					data: ContextMenuItem<HierarchyNodeWaveGraphSignalWithXYId>,
 					index: number) => {
 					d.data.data.type.isSelected = true;
+					this.removeFunction(d.data.data.rtlID);
 					return waveGraph.treelist?.filter((d) => {
 						return !d.type.isSelected;
 					});
 				}
 			),
-			new ContextMenuItem<HierarchyNodeWaveGraphSignalWithXYId>(
-				'Format',
-				d.data,
-				/* children */ formatOptions,
-				/* divider */ false,
-				/* disabled */ formatOptions.length == 0,
-				/*action*/ null,
-			)];
+			// new ContextMenuItem<HierarchyNodeWaveGraphSignalWithXYId>(
+			// 	'Format',
+			// 	d.data,
+			// 	/* children */ formatOptions,
+			// 	/* divider */ false,
+			// 	/* disabled */ formatOptions.length == 0,
+			// 	/*action*/ null,
+			// )
+		];
 	}
 }
 

@@ -45,7 +45,16 @@ export class WaveGraph {
 	data: WaveGraphSignal[]; // flattened list of all displayed signals
 	_allData?: WaveGraphSignal; // all data which were originaly assigned to this graph
 
-	constructor(svg: d3.Selection<SVGSVGElement, undefined, HTMLDivElement, undefined>) {
+	noZoomMode = true;
+
+	clickFunction: (id: string | undefined) => void;
+
+	constructor(svg: d3.Selection<SVGSVGElement, undefined, HTMLDivElement, undefined>, 
+			removeFunction: (id: string | undefined) => void,
+			clickFunction: (id: string | undefined) => void){
+
+		this.clickFunction = clickFunction;
+
 		this.svg = svg;
 		svg.classed('d3-wave', true);
 		this.dataG = svg.append('g');
@@ -74,16 +83,37 @@ export class WaveGraph {
 		];
 		this.timeZoom = null;
 		this.labelAreaSizeDragBar = null;
-		this.labelContextMenu = new SignalContextMenu(this);
+		this.labelContextMenu = new SignalContextMenu(this, removeFunction);
 		this.setSizes();
 		this.treelist = null;
+	}
+
+	getMaxTime() : number{
+		const dataChilren = (<any>this._allData).children;
+		let latestTimeReal = 0;
+		let difflatest = 1000;
+		if (dataChilren) {
+			for (const child of dataChilren) {
+				const data = child.data;
+				if (data) {
+					const latestData = data[data.length - 1];
+					const latestTime = latestData[0];
+					if (latestTime > latestTimeReal) {
+						latestTimeReal = latestTime;
+						if (data.length >= 2) {
+							difflatest = data[data.length - 1][0] - data[data.length - 2][0];
+						}
+					}
+				}
+			}
+		}
+		return latestTimeReal + difflatest;
 	}
 
 	_setZoom() {
 		const timeRange = this.xRange;
 		const _thisWaveGraph = this;
 		this.timeZoom = d3.zoom<SVGGElement, undefined>()
-			.scaleExtent([1 / Math.max(1, timeRange[1]), 1.1])
 			.translateExtent([[timeRange[0], 0], [timeRange[1], 0]])
 			.on('zoom', this._zoomed.bind(this));
 		this.dataG.call(this.timeZoom);
@@ -114,14 +144,19 @@ export class WaveGraph {
 		const xAxis = this.xAxis;
 		if (!xAxis)
 			return;
+		
+		let newSizes = zoomedScale.domain() as [number, number]
+		if (newSizes[0] !== this.sizes.row.range[0] || newSizes[1] !== this.sizes.row.range[1]) {
+			if (this.noZoomMode) {
+				this.noZoomMode = false;
+				this.setSizes();
+				this.dataG.call(this.timeZoom!.transform, d3.zoomIdentity)
+				return;
+			}
+		}
+		
 		xAxis.scale(zoomedScale);
-
-		this.sizes.row.range = zoomedScale.domain() as [number, number];
-		// update tick formatter becase time range has changed
-		// and we may want to use a different time unit
-		xAxis.tickFormat(
-			createTimeFormatterForTimeRange(this.sizes.row.range)
-		);
+		this.sizes.row.range = newSizes;
 		this.draw();
 
 	}
@@ -242,6 +277,17 @@ export class WaveGraph {
 			if (!xAxis) {
 				throw new Error("xAxis should exists if xAxisG exists");
 			}
+
+			this.dataG.select('.axis-x').remove();
+			// create xaxisG
+			this.xAxis = d3.axisTop(xAxisScale)
+				.tickFormat(
+					createTimeFormatterForTimeRange(this.sizes.row.range)
+				);
+			this.xAxisG = this.dataG.append('g')
+				.attr('class', 'axis axis-x')
+				.call(this.xAxis);
+
 			xaxisG.call(xAxis.scale(xAxisScale));
 		} else {
 			// create xaxisG
@@ -262,37 +308,37 @@ export class WaveGraph {
 		// Define the div for the tooltip
 
 		const icons = [
-			{
-				'icon': faQuestion,
-				'tooltip': 'd3-wave help placeholder[TODO]',
-			},
-			{
-				'icon': faDownload,
-				'tooltip': 'Download current screen as SVG image',
-				'onclick': function () {
-					const svgNode = _this.svg.node();
-					if (!svgNode) {
-						throw new Error("svgNode should exist");
-					}
-					const svg = exportStyledSvgToBlob(svgNode);
-					const url = URL.createObjectURL(svg);
-					window.open(url);
-				}
-			},
+			// {
+			// 	'icon': faQuestion,
+			// 	'tooltip': 'd3-wave help placeholder[TODO]',
+			// },
+			// {
+			// 	'icon': faDownload,
+			// 	'tooltip': 'Download current screen as SVG image',
+			// 	'onclick': function () {
+			// 		const svgNode = _this.svg.node();
+			// 		if (!svgNode) {
+			// 			throw new Error("svgNode should exist");
+			// 		}
+			// 		const svg = exportStyledSvgToBlob(svgNode);
+			// 		const url = URL.createObjectURL(svg);
+			// 		window.open(url);
+			// 	}
+			// },
 			{
 				'icon': faArrowsH,
-				'tooltip': 'Reset time zoom to fit screen',
+				'tooltip': "Reset time zoom to fit screen",
 				'onclick': function () {
 					_this.zoomReset();
 				}
 			},
-			{
-				'icon': faFilter,
-				'tooltip': 'Filter signals to display',
-				'onclick': function() {
+			// {
+			// 	'icon': faFilter,
+			// 	'tooltip': 'Filter signals to display',
+			// 	'onclick': function() {
 
-				}
-			}
+			// 	}
+			// }
 
 		];
 
@@ -303,7 +349,7 @@ export class WaveGraph {
 			.data(icons).enter()
 			.append("g")
 			.attr("transform", function (d, i) {
-				return 'translate(' + (i * ROW_Y) + ',' + (-ROW_Y * 1) + ') scale(' + (ROW_Y / d.icon.icon[1] * 0.5) + ')';
+				return 'translate(' + (6 * ROW_Y) + ',' + (-ROW_Y * 1) + ') scale(' + (ROW_Y / d.icon.icon[1] * 0.8) + ')';
 			})
 			.call(tooltip.addToElm.bind(tooltip))
 			.on('click', function (ev, d) {
@@ -368,6 +414,7 @@ export class WaveGraph {
 		var valueRows = this.dataG.selectAll<SVGGElement, WaveGraphSignal>('.value-row')
 			.data(graph.data);
 
+		const selfm = this;
 		function renderWaveRows(selection: d3.Selection<SVGGElement, WaveGraphSignal, any, any>) {
 			// Select correct renderer function based on type of data series
 			selection.each(function (this: SVGGElement, d) {
@@ -377,7 +424,13 @@ export class WaveGraph {
 				if (data && data.length) {
 					const parent = d3.select(this);
 					const range = graph.sizes.row.range;
-					data = filterDataByTime(data, [Math.max(range[0], 0), Math.max(range[1], 1)]);
+
+					let maxRange = range[1];
+					if (maxRange > selfm.getMaxTime()) {
+						maxRange = selfm.getMaxTime();
+					}
+
+					data = filterDataByTime(data, [Math.max(range[0], 0), Math.max(maxRange, 1)]);
 					if (!signalType.renderer) {
 						throw new Error("Signal must have renderer already assinged");
 					}
@@ -434,12 +487,14 @@ export class WaveGraph {
 		findRendererAndDiscoverMaxT(this._allData);
 
 		var sizes = this.sizes;
-		this.xRange[1] = sizes.row.range[1] = maxT;
+		if (this.noZoomMode) {
+			this.xRange[1] = sizes.row.range[1] = maxT;
+		}
 		this._setZoom();
 		var ROW_Y = sizes.row.height + sizes.row.ypadding;
 		var graph = this;
 		if (!this.treelist) {
-			this.treelist = new TreeList(ROW_Y, this.labelContextMenu);
+			this.treelist = new TreeList(ROW_Y, this.labelContextMenu, this.clickFunction);
 			this.treelist
 				.onChange(function (selection: d3.HierarchyNode<WaveGraphSignal>[]) {
 					graph.data = selection.map((d) => { return d.data; });
@@ -454,7 +509,10 @@ export class WaveGraph {
 	zoomReset() {
 		if (!this.timeZoom)
 			throw new Error("timeZoom was not initialized");
-		this.dataG.call(this.timeZoom.transform, d3.zoomIdentity)
+		this.noZoomMode = true;
+		this.sizes.row.range = [0, this.getMaxTime()];
+		this.xRange = this.sizes.row.range;
+		this.draw();
 	}
 	//zoomToTimeRange(start: number, end: number) {
 	//	if (!this.timeZoom)

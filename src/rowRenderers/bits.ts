@@ -107,7 +107,10 @@ export class RowRendererBits extends RowRendererBase {
 				}
 				if (formatedText.length * fontSize > width) {
 					var chars = Math.ceil(width / fontSize);
-					return formatedText.substr(0, chars);
+					if (chars - 1 <= 2) {
+						return "...";
+					}
+					return formatedText.substr(0, chars - 1) + "...";
 				}
 				return formatedText;
 			});
